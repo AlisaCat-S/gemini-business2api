@@ -191,7 +191,8 @@ class GeminiAutomation:
             return ""
         return (
             "function FindProxyForURL(url, host) {\n"
-            '  if (shExpMatch(url, "*batchexecute*")) {\n'
+            '  if (dnsDomainIs(host, "accountverification.business.gemini.google")'
+            ' || shExpMatch(url, "*batchexecute*")) {\n'
             f'    return "{send_entry}";\n'
             "  }\n"
             f'  return "{auth_entry}";\n'
