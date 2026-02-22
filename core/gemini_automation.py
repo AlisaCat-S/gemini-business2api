@@ -6,9 +6,11 @@ import json
 import random
 import string
 import time
+import tempfile
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
+from pathlib import Path
 
 from DrissionPage import ChromiumPage, ChromiumOptions
 from core.base_task_service import TaskCancelledError
@@ -42,18 +44,21 @@ class GeminiAutomation:
         self,
         user_agent: str = "",
         proxy: str = "",
+        proxy_for_send_code: str = "",
         headless: bool = True,
         timeout: int = 60,
         log_callback=None,
     ) -> None:
         self.user_agent = user_agent or self._get_ua()
         self.proxy = proxy
+        self.proxy_for_send_code = proxy_for_send_code
         self.headless = headless
         self.timeout = timeout
         self.log_callback = log_callback
         self._page = None
         self._user_data_dir = None
         self._last_send_error = ""
+        self._pac_file_path = None
 
     def stop(self) -> None:
         """外部请求停止：尽力关闭浏览器实例。"""
@@ -63,6 +68,7 @@ class GeminiAutomation:
                 page.quit()
             except Exception:
                 pass
+        self._cleanup_pac_file()
 
     def login_and_extract(self, email: str, mail_client) -> dict:
         """执行登录并提取配置"""
@@ -86,6 +92,7 @@ class GeminiAutomation:
                 except Exception:
                     pass
             self._page = None
+            self._cleanup_pac_file()
             self._cleanup_user_data(user_data_dir)
             self._user_data_dir = None
 
@@ -110,8 +117,23 @@ class GeminiAutomation:
         options.set_argument("--lang=zh-CN")
         options.set_pref("intl.accept_languages", "zh-CN,zh")
 
-        if self.proxy:
+        if self.proxy and self.proxy_for_send_code:
+            pac_path = self._prepare_pac_file(self.proxy, self.proxy_for_send_code)
+            if pac_path:
+                pac_url = Path(pac_path).resolve().as_uri()
+                options.set_argument(f"--proxy-pac-url={pac_url}")
+            else:
+                options.set_argument(f"--proxy-server={self.proxy}")
+        elif self.proxy:
             options.set_argument(f"--proxy-server={self.proxy}")
+        elif self.proxy_for_send_code:
+            # 仅设置了验证码代理，未设置 auth 代理：PAC 分流，其他请求直连
+            pac_path = self._prepare_pac_file("DIRECT", self.proxy_for_send_code)
+            if pac_path:
+                pac_url = Path(pac_path).resolve().as_uri()
+                options.set_argument(f"--proxy-pac-url={pac_url}")
+            else:
+                options.set_argument(f"--proxy-server={self.proxy_for_send_code}")
 
         if self.headless:
             # 使用新版无头模式，更接近真实浏览器
@@ -157,6 +179,74 @@ class GeminiAutomation:
                 pass
 
         return page
+
+    def _prepare_pac_file(self, auth_proxy: str, send_code_proxy: str) -> Optional[str]:
+        """生成 PAC 临时文件，返回文件路径"""
+        self._cleanup_pac_file()
+        pac_script = self._build_pac_script(auth_proxy, send_code_proxy)
+        if not pac_script:
+            return None
+        try:
+            pac_file = tempfile.NamedTemporaryFile(
+                mode="w", suffix=".pac", delete=False, encoding="utf-8",
+            )
+            pac_file.write(pac_script)
+            pac_file.close()
+            self._pac_file_path = pac_file.name
+            self._log("info", f"🔀 PAC 分流已启用: 验证码→{send_code_proxy}, 其他→{auth_proxy}")
+            return pac_file.name
+        except Exception as exc:
+            self._cleanup_pac_file()
+            self._log("warning", f"⚠️ PAC 文件写入失败: {exc}")
+            return None
+
+    def _build_pac_script(self, auth_proxy: str, send_code_proxy: str) -> str:
+        """构建 PAC 脚本内容"""
+        auth_entry = self._proxy_url_to_pac(auth_proxy)
+        send_entry = self._proxy_url_to_pac(send_code_proxy)
+        if not auth_entry or not send_entry:
+            return ""
+        return (
+            "function FindProxyForURL(url, host) {\n"
+            '  if (dnsDomainIs(host, "accounts.google.com") && shExpMatch(url, "*batchexecute*")) {\n'
+            f'    return "{send_entry}";\n'
+            "  }\n"
+            f'  return "{auth_entry}";\n'
+            "}"
+        )
+
+    @staticmethod
+    def _proxy_url_to_pac(proxy_url: str) -> str:
+        """将代理 URL (http://host:port, socks5://host:port) 转换为 PAC 规则字符串"""
+        if not proxy_url:
+            return ""
+        if proxy_url.upper() == "DIRECT":
+            return "DIRECT"
+        try:
+            parsed = urlparse(proxy_url)
+        except Exception:
+            return ""
+        scheme = (parsed.scheme or "").lower()
+        host = parsed.hostname or ""
+        port = parsed.port
+        if not host or not port:
+            return ""
+        address = f"{host}:{port}"
+        if scheme in ("socks5", "socks5h"):
+            return f"SOCKS5 {address}"
+        return f"PROXY {address}"
+
+    def _cleanup_pac_file(self) -> None:
+        """清理 PAC 临时文件"""
+        if not self._pac_file_path:
+            return
+        try:
+            if os.path.exists(self._pac_file_path):
+                os.remove(self._pac_file_path)
+        except Exception:
+            pass
+        finally:
+            self._pac_file_path = None
 
     def _run_flow(self, page, email: str, mail_client) -> dict:
         """执行登录流程"""

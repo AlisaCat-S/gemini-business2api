@@ -199,12 +199,14 @@ class RegisterService(BaseTaskService[RegisterTask]):
 
         headless = config.basic.browser_headless
         proxy_for_auth, _ = parse_proxy_setting(config.basic.proxy_for_auth)
+        proxy_for_send_code, _ = parse_proxy_setting(config.basic.proxy_for_send_code)
 
         log_cb("info", f"🌐 步骤 2/3: 启动浏览器 (无头模式={headless})...")
 
         automation = GeminiAutomation(
             user_agent=self.user_agent,
             proxy=proxy_for_auth,
+            proxy_for_send_code=proxy_for_send_code,
             headless=headless,
             log_callback=log_cb,
         )
