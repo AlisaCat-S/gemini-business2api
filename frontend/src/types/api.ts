@@ -109,6 +109,11 @@ export interface Settings {
     auto_refresh_accounts_seconds: number
     scheduled_refresh_enabled?: boolean
     scheduled_refresh_interval_minutes?: number
+    scheduled_register_enabled?: boolean
+    scheduled_register_interval_hours?: number
+    scheduled_register_start_time?: string
+    scheduled_register_count?: number
+    scheduled_register_mail_provider?: TempMailProvider | ''
   }
   public_display: {
     logo_url?: string

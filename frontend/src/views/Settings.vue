@@ -103,6 +103,52 @@
               </div>
             </div>
 
+            <div class="rounded-2xl border border-border bg-card p-4">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-xs uppercase tracking-[0.3em] text-muted-foreground">定时注册</p>
+                <HelpTip text="按指定间隔自动注册新账号。触发时若已有注册任务在运行则跳过本轮。" />
+              </div>
+              <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div class="col-span-2">
+                  <Checkbox v-model="localSettings.retry.scheduled_register_enabled">
+                    启用定时注册
+                  </Checkbox>
+                </div>
+
+                <label class="col-span-2 text-xs text-muted-foreground">邮箱供应商（留空使用默认）</label>
+                <SelectMenu
+                  v-model="localSettings.retry.scheduled_register_mail_provider"
+                  :options="[{ label: '使用默认', value: '' }, ...tempMailProviderOptions]"
+                  class="col-span-2 w-full"
+                />
+
+                <label class="col-span-2 text-xs text-muted-foreground">每次注册数量</label>
+                <input
+                  v-model.number="localSettings.retry.scheduled_register_count"
+                  type="number"
+                  min="1"
+                  max="50"
+                  class="col-span-2 rounded-2xl border border-input bg-background px-3 py-2"
+                />
+
+                <label class="col-span-2 text-xs text-muted-foreground">注册间隔（小时）</label>
+                <input
+                  v-model.number="localSettings.retry.scheduled_register_interval_hours"
+                  type="number"
+                  min="1"
+                  max="24"
+                  class="col-span-2 rounded-2xl border border-input bg-background px-3 py-2"
+                />
+
+                <label class="col-span-2 text-xs text-muted-foreground">起始时间（服务器本地时间）</label>
+                <input
+                  v-model="localSettings.retry.scheduled_register_start_time"
+                  type="time"
+                  class="col-span-2 rounded-2xl border border-input bg-background px-3 py-2"
+                />
+              </div>
+            </div>
+
           </div>
 
           <div class="space-y-4">
@@ -488,6 +534,19 @@ watch(settings, (value) => {
   next.retry.auto_refresh_accounts_seconds = Number.isFinite(next.retry.auto_refresh_accounts_seconds)
     ? next.retry.auto_refresh_accounts_seconds
     : 60
+  next.retry.scheduled_register_enabled = next.retry.scheduled_register_enabled ?? false
+  next.retry.scheduled_register_interval_hours = Number.isFinite(next.retry.scheduled_register_interval_hours)
+    ? next.retry.scheduled_register_interval_hours
+    : 1
+  next.retry.scheduled_register_start_time = typeof next.retry.scheduled_register_start_time === 'string'
+    ? next.retry.scheduled_register_start_time
+    : '00:00'
+  next.retry.scheduled_register_count = Number.isFinite(next.retry.scheduled_register_count)
+    ? next.retry.scheduled_register_count
+    : 1
+  next.retry.scheduled_register_mail_provider = typeof next.retry.scheduled_register_mail_provider === 'string'
+    ? next.retry.scheduled_register_mail_provider
+    : ''
   localSettings.value = next
 })
 

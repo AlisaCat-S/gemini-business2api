@@ -4,6 +4,7 @@ import os
 import time
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional
 
 from core.account import load_accounts_from_source
@@ -14,6 +15,9 @@ from core.gemini_automation import GeminiAutomation
 from core.proxy_utils import parse_proxy_setting
 
 logger = logging.getLogger("gemini.register")
+
+# 配置检查间隔（秒）
+CONFIG_CHECK_INTERVAL_SECONDS = 60
 
 
 @dataclass
@@ -55,6 +59,7 @@ class RegisterService(BaseTaskService[RegisterTask]):
             set_multi_account_mgr,
             log_prefix="REGISTER",
         )
+        self._is_polling = False
 
     def _get_running_task(self) -> Optional[RegisterTask]:
         """获取正在运行或等待中的任务"""
@@ -274,3 +279,114 @@ class RegisterService(BaseTaskService[RegisterTask]):
         log_cb("info", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         return {"success": True, "email": client.email, "config": config_data}
+
+    # ==================== 定时注册轮询 ====================
+
+    @staticmethod
+    def _parse_start_time(value: str) -> tuple:
+        """解析 HH:MM 格式的起始时间，返回 (hour, minute)"""
+        try:
+            parts = (value or "").strip().split(":")
+            if len(parts) != 2:
+                raise ValueError("invalid format")
+            hour, minute = int(parts[0]), int(parts[1])
+            if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                raise ValueError("out of range")
+            return hour, minute
+        except Exception:
+            logger.warning("[REGISTER] 无效的起始时间格式: %s，回退到 00:00", value)
+            return 0, 0
+
+    @staticmethod
+    def _calc_next_trigger(now: datetime, start_time: str, interval_hours: int) -> datetime:
+        """计算下一次触发时间：以当天 start_time 为锚点，按 interval_hours 递推"""
+        hour, minute = RegisterService._parse_start_time(start_time)
+        interval = timedelta(hours=max(1, interval_hours))
+        anchor = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+        if now < anchor:
+            return anchor
+
+        elapsed = now - anchor
+        steps = int(elapsed.total_seconds() // interval.total_seconds()) + 1
+        return anchor + interval * steps
+
+    async def start_polling(self) -> None:
+        """启动定时注册轮询（常驻后台）"""
+        if self._is_polling:
+            logger.warning("[REGISTER] 定时注册轮询已在运行")
+            return
+
+        self._is_polling = True
+        logger.info("[REGISTER] 定时注册轮询已启动")
+        try:
+            while self._is_polling:
+                # 检查配置是否启用
+                if not config.retry.scheduled_register_enabled:
+                    logger.debug("[REGISTER] 定时注册未启用，跳过检查")
+                    await asyncio.sleep(CONFIG_CHECK_INTERVAL_SECONDS)
+                    continue
+
+                # ACCOUNTS_CONFIG 存在时跳过
+                if os.environ.get("ACCOUNTS_CONFIG"):
+                    logger.debug("[REGISTER] ACCOUNTS_CONFIG 已设置，定时注册跳过")
+                    await asyncio.sleep(CONFIG_CHECK_INTERVAL_SECONDS)
+                    continue
+
+                # 计算下一次触发时间
+                now = datetime.now()
+                next_trigger = self._calc_next_trigger(
+                    now,
+                    config.retry.scheduled_register_start_time,
+                    config.retry.scheduled_register_interval_hours,
+                )
+                wait_seconds = (next_trigger - now).total_seconds()
+                logger.info(
+                    "[REGISTER] 下次定时注册: %s（%.0f秒后）",
+                    next_trigger.strftime("%Y-%m-%d %H:%M:%S"),
+                    wait_seconds,
+                )
+
+                # 等待到触发时间，期间每分钟检查配置变更
+                while wait_seconds > 0 and self._is_polling:
+                    sleep_time = min(wait_seconds, CONFIG_CHECK_INTERVAL_SECONDS)
+                    await asyncio.sleep(sleep_time)
+                    wait_seconds -= sleep_time
+
+                    # 配置被关闭则跳出等待
+                    if not config.retry.scheduled_register_enabled:
+                        logger.info("[REGISTER] 定时注册已被禁用，中断等待")
+                        break
+
+                if not self._is_polling or not config.retry.scheduled_register_enabled:
+                    continue
+
+                # 先在锁内检查是否有运行中任务，避免与手动注册竞态
+                count = config.retry.scheduled_register_count
+                provider = config.retry.scheduled_register_mail_provider or None
+                async with self._lock:
+                    running = self._get_running_task()
+                    if running:
+                        logger.info("[REGISTER] 已有注册任务运行中（%s），跳过本轮定时注册", running.id)
+                        skip = True
+                    else:
+                        skip = False
+                if skip:
+                    continue
+                logger.info("[REGISTER] 定时注册触发: 数量=%d, 邮箱供应商=%s", count, provider or "默认")
+                try:
+                    await self.start_register(count=count, mail_provider=provider)
+                except Exception as exc:
+                    logger.error("[REGISTER] 定时注册失败: %s", exc)
+
+        except asyncio.CancelledError:
+            logger.info("[REGISTER] 定时注册轮询已停止")
+        except Exception as exc:
+            logger.error("[REGISTER] 定时注册轮询异常: %s", exc)
+        finally:
+            self._is_polling = False
+
+    def stop_polling(self) -> None:
+        """停止定时注册轮询"""
+        self._is_polling = False
+        logger.info("[REGISTER] 正在停止定时注册轮询")

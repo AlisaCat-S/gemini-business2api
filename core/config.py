@@ -106,6 +106,26 @@ class RetryConfig(BaseModel):
     # 定时刷新配置
     scheduled_refresh_enabled: bool = Field(default=False, description="是否启用定时刷新任务")
     scheduled_refresh_interval_minutes: int = Field(default=30, ge=0, le=720, description="定时刷新检测间隔（分钟，0-12小时）")
+    # 定时注册配置
+    scheduled_register_enabled: bool = Field(default=False, description="是否启用定时注册任务")
+    scheduled_register_interval_hours: int = Field(default=1, ge=1, le=24, description="定时注册间隔（小时，1-24）")
+    scheduled_register_start_time: str = Field(default="00:00", description="定时注册起始时间（HH:MM，服务器本地时间）")
+    scheduled_register_count: int = Field(default=1, ge=1, le=50, description="每次定时注册数量（1-50）")
+    scheduled_register_mail_provider: str = Field(default="", description="定时注册邮件供应商（留空则使用默认）")
+
+    @validator("scheduled_register_start_time")
+    def validate_start_time(cls, v):
+        import re
+        if not re.match(r"^([01]\d|2[0-3]):[0-5]\d$", v or ""):
+            return "00:00"
+        return v
+
+    @validator("scheduled_register_mail_provider")
+    def validate_register_mail_provider(cls, v):
+        allowed = ("", "moemail", "duckmail", "freemail", "gptmail")
+        if (v or "") not in allowed:
+            return ""
+        return v
 
 class PublicDisplayConfig(BaseModel):
     """公开展示配置"""

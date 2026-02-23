@@ -818,6 +818,16 @@ async def startup_event():
     else:
         logger.info("[SYSTEM] 自动登录刷新未启用或依赖不可用")
 
+    # 启动定时注册轮询（始终启动，但默认禁用）
+    if register_service:
+        try:
+            asyncio.create_task(register_service.start_polling())
+            logger.info("[SYSTEM] 定时注册轮询服务已启动（默认禁用，可在设置中启用）")
+        except Exception as e:
+            logger.error(f"[SYSTEM] 启动定时注册服务失败: {e}")
+    else:
+        logger.info("[SYSTEM] 定时注册服务不可用")
+
     # 启动冷却状态定期保存任务（每5分钟保存一次）
     if storage.is_database_enabled():
         asyncio.create_task(save_cooldown_states_task())
@@ -1485,7 +1495,12 @@ async def admin_get_settings(request: Request):
             "session_cache_ttl_seconds": config.retry.session_cache_ttl_seconds,
             "auto_refresh_accounts_seconds": config.retry.auto_refresh_accounts_seconds,
             "scheduled_refresh_enabled": config.retry.scheduled_refresh_enabled,
-            "scheduled_refresh_interval_minutes": config.retry.scheduled_refresh_interval_minutes
+            "scheduled_refresh_interval_minutes": config.retry.scheduled_refresh_interval_minutes,
+            "scheduled_register_enabled": config.retry.scheduled_register_enabled,
+            "scheduled_register_interval_hours": config.retry.scheduled_register_interval_hours,
+            "scheduled_register_start_time": config.retry.scheduled_register_start_time,
+            "scheduled_register_count": config.retry.scheduled_register_count,
+            "scheduled_register_mail_provider": config.retry.scheduled_register_mail_provider
         },
         "public_display": {
             "logo_url": config.public_display.logo_url,
@@ -1553,6 +1568,11 @@ async def admin_update_settings(request: Request, new_settings: dict = Body(...)
         retry.setdefault("auto_refresh_accounts_seconds", config.retry.auto_refresh_accounts_seconds)
         retry.setdefault("scheduled_refresh_enabled", config.retry.scheduled_refresh_enabled)
         retry.setdefault("scheduled_refresh_interval_minutes", config.retry.scheduled_refresh_interval_minutes)
+        retry.setdefault("scheduled_register_enabled", config.retry.scheduled_register_enabled)
+        retry.setdefault("scheduled_register_interval_hours", config.retry.scheduled_register_interval_hours)
+        retry.setdefault("scheduled_register_start_time", config.retry.scheduled_register_start_time)
+        retry.setdefault("scheduled_register_count", config.retry.scheduled_register_count)
+        retry.setdefault("scheduled_register_mail_provider", config.retry.scheduled_register_mail_provider)
         retry.setdefault("text_rate_limit_cooldown_seconds", config.retry.text_rate_limit_cooldown_seconds)
         retry.setdefault("images_rate_limit_cooldown_seconds", config.retry.images_rate_limit_cooldown_seconds)
         retry.setdefault("videos_rate_limit_cooldown_seconds", config.retry.videos_rate_limit_cooldown_seconds)
