@@ -122,6 +122,14 @@
                   class="col-span-2 w-full"
                 />
 
+                <label class="col-span-2 text-xs text-muted-foreground">域名（留空使用对应提供商的默认域名配置）</label>
+                <input
+                  v-model="localSettings.retry.scheduled_register_domain"
+                  type="text"
+                  placeholder="留空则使用默认"
+                  class="col-span-2 rounded-2xl border border-input bg-background px-3 py-2"
+                />
+
                 <label class="col-span-2 text-xs text-muted-foreground">每次注册数量</label>
                 <input
                   v-model.number="localSettings.retry.scheduled_register_count"
@@ -546,6 +554,9 @@ watch(settings, (value) => {
     : 1
   next.retry.scheduled_register_mail_provider = typeof next.retry.scheduled_register_mail_provider === 'string'
     ? next.retry.scheduled_register_mail_provider
+    : ''
+  next.retry.scheduled_register_domain = typeof next.retry.scheduled_register_domain === 'string'
+    ? next.retry.scheduled_register_domain
     : ''
   localSettings.value = next
 })

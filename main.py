@@ -1500,7 +1500,8 @@ async def admin_get_settings(request: Request):
             "scheduled_register_interval_hours": config.retry.scheduled_register_interval_hours,
             "scheduled_register_start_time": config.retry.scheduled_register_start_time,
             "scheduled_register_count": config.retry.scheduled_register_count,
-            "scheduled_register_mail_provider": config.retry.scheduled_register_mail_provider
+            "scheduled_register_mail_provider": config.retry.scheduled_register_mail_provider,
+            "scheduled_register_domain": config.retry.scheduled_register_domain
         },
         "public_display": {
             "logo_url": config.public_display.logo_url,
@@ -1573,6 +1574,7 @@ async def admin_update_settings(request: Request, new_settings: dict = Body(...)
         retry.setdefault("scheduled_register_start_time", config.retry.scheduled_register_start_time)
         retry.setdefault("scheduled_register_count", config.retry.scheduled_register_count)
         retry.setdefault("scheduled_register_mail_provider", config.retry.scheduled_register_mail_provider)
+        retry.setdefault("scheduled_register_domain", config.retry.scheduled_register_domain)
         retry.setdefault("text_rate_limit_cooldown_seconds", config.retry.text_rate_limit_cooldown_seconds)
         retry.setdefault("images_rate_limit_cooldown_seconds", config.retry.images_rate_limit_cooldown_seconds)
         retry.setdefault("videos_rate_limit_cooldown_seconds", config.retry.videos_rate_limit_cooldown_seconds)

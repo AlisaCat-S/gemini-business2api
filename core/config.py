@@ -112,6 +112,7 @@ class RetryConfig(BaseModel):
     scheduled_register_start_time: str = Field(default="00:00", description="定时注册起始时间（HH:MM，服务器本地时间）")
     scheduled_register_count: int = Field(default=1, ge=1, le=50, description="每次定时注册数量（1-50）")
     scheduled_register_mail_provider: str = Field(default="", description="定时注册邮件供应商（留空则使用默认）")
+    scheduled_register_domain: str = Field(default="", description="定时注册域名（留空则使用对应提供商的默认域名配置）")
 
     @validator("scheduled_register_start_time")
     def validate_start_time(cls, v):

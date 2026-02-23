@@ -83,13 +83,16 @@ class RegisterService(BaseTaskService[RegisterTask]):
             if not mail_provider_value:
                 mail_provider_value = (config.basic.temp_mail_provider or "duckmail").lower()
 
-            # 再确定使用哪个域名（只有 DuckMail 使用 register_domain 配置）
+            # 确定使用哪个域名（优先入参，其次使用各提供商配置）
             domain_value = (domain or "").strip()
             if not domain_value:
-                if mail_provider_value == "duckmail":
-                    domain_value = (config.basic.register_domain or "").strip() or None
-                else:
-                    domain_value = None
+                _domain_map = {
+                    "duckmail": config.basic.register_domain,
+                    "gptmail": config.basic.gptmail_domain,
+                    "moemail": config.basic.moemail_domain,
+                    "freemail": config.basic.freemail_domain,
+                }
+                domain_value = (_domain_map.get(mail_provider_value) or "").strip() or None
 
             register_count = count or config.basic.register_default_count
             register_count = max(1, int(register_count))
@@ -364,6 +367,7 @@ class RegisterService(BaseTaskService[RegisterTask]):
                 # 先在锁内检查是否有运行中任务，避免与手动注册竞态
                 count = config.retry.scheduled_register_count
                 provider = config.retry.scheduled_register_mail_provider or None
+                sched_domain = (config.retry.scheduled_register_domain or "").strip() or None
                 async with self._lock:
                     running = self._get_running_task()
                     if running:
@@ -373,9 +377,9 @@ class RegisterService(BaseTaskService[RegisterTask]):
                         skip = False
                 if skip:
                     continue
-                logger.info("[REGISTER] 定时注册触发: 数量=%d, 邮箱供应商=%s", count, provider or "默认")
+                logger.info("[REGISTER] 定时注册触发: 数量=%d, 邮箱供应商=%s, 域名=%s", count, provider or "默认", sched_domain or "default")
                 try:
-                    await self.start_register(count=count, mail_provider=provider)
+                    await self.start_register(count=count, mail_provider=provider, domain=sched_domain)
                 except Exception as exc:
                     logger.error("[REGISTER] 定时注册失败: %s", exc)
 

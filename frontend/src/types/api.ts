@@ -114,6 +114,7 @@ export interface Settings {
     scheduled_register_start_time?: string
     scheduled_register_count?: number
     scheduled_register_mail_provider?: TempMailProvider | ''
+    scheduled_register_domain?: string
   }
   public_display: {
     logo_url?: string
