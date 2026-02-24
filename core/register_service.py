@@ -166,6 +166,11 @@ class RegisterService(BaseTaskService[RegisterTask]):
                 error = result.get('error', '未知错误')
                 self._append_log(task, "error", f"❌ 注册失败: {error}")
 
+            # 账号之间等待 10 秒，避免资源争抢和风控
+            if idx < task.count - 1 and not task.cancel_requested:
+                self._append_log(task, "info", "⏳ 等待 10 秒后处理下一个账号...")
+                await asyncio.sleep(10)
+
         if task.cancel_requested:
             task.status = TaskStatus.CANCELLED
         else:

@@ -20,6 +20,9 @@ apiClient.interceptors.request.use(
   }
 )
 
+// 防止多个 401 响应触发重复跳转
+let isRedirecting = false
+
 // 响应拦截器
 apiClient.interceptors.response.use(
   (response) => {
@@ -27,10 +30,12 @@ apiClient.interceptors.response.use(
   },
   async (error: AxiosError) => {
     // 统一错误处理
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !isRedirecting) {
+      isRedirecting = true
       const authStore = useAuthStore()
       authStore.isLoggedIn = false
-      router.push('/login')
+      await router.push('/login')
+      isRedirecting = false
     }
 
     const errorMessage = error.response?.data

@@ -159,6 +159,11 @@ class LoginService(BaseTaskService[LoginTask]):
                 self._append_log(task, "error", f"❌ 失败原因: {error}")
                 self._append_log(task, "error", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
+            # 账号之间等待 10 秒，避免资源争抢和风控
+            if idx < len(task.account_ids) and not task.cancel_requested:
+                self._append_log(task, "info", "⏳ 等待 10 秒后处理下一个账号...")
+                await asyncio.sleep(10)
+
         if task.cancel_requested:
             task.status = TaskStatus.CANCELLED
         else:
