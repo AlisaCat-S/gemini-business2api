@@ -593,6 +593,12 @@ watch(settings, (value) => {
   next.basic.gptmail_domain = typeof next.basic.gptmail_domain === 'string'
     ? next.basic.gptmail_domain
     : ''
+  next.basic.email_poll_retries = Number.isFinite(next.basic.email_poll_retries)
+    ? next.basic.email_poll_retries
+    : 3
+  next.basic.email_resend_retries = Number.isFinite(next.basic.email_resend_retries)
+    ? next.basic.email_resend_retries
+    : 1
   next.retry = next.retry || {}
   next.retry.auto_refresh_accounts_seconds = Number.isFinite(next.retry.auto_refresh_accounts_seconds)
     ? next.retry.auto_refresh_accounts_seconds
