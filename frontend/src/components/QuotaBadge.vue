@@ -219,13 +219,13 @@ const getStatusIcon = (status: QuotaStatus) => {
 }
 
 const getStatusText = (status: QuotaStatus, type?: string) => {
-  if (status.available) {
-    return '正常'
+  // 有配额计数信息时统一显示 used/limit
+  if (status.daily_limit != null && status.daily_limit > 0) {
+    return `${status.daily_used ?? 0}/${status.daily_limit}`
   }
 
-  // 如果有 reason 字段（对话配额受限导致的连带限制）
-  if (status.reason) {
-    return '对话受限'
+  if (status.available) {
+    return '正常'
   }
 
   if (status.remaining_seconds) {
@@ -245,11 +245,11 @@ const formatTime = (seconds: number) => {
 }
 
 const formatLimitedType = (type: string, remaining?: number) => {
-  const names: Record<string, string> = { text: '话', images: '图', videos: '频' }
+  const names: Record<string, string> = { text: '对话', images: '绘图', videos: '视频' }
   const name = names[type] || type
   if (remaining) {
     return `${name}${formatTime(remaining)}`
   }
-  return `${name}不可用`
+  return name
 }
 </script>

@@ -47,3 +47,10 @@ static/
 .DS_Store
 Thumbs.db
 old_version.py
+
+# Local files
+.claude/
+CLAUDE.md
+HAR.txt
+menu.sh
+frontend/package-lock.json

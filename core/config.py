@@ -127,6 +127,14 @@ class RetryConfig(BaseModel):
             return ""
         return v
 
+class QuotaLimitsConfig(BaseModel):
+    """每日配额上限配置（基于 Google 官方限额，用于主动配额计数）"""
+    enabled: bool = Field(default=True, description="是否启用主动配额计数")
+    text_daily_limit: int = Field(default=120, ge=0, le=9999, description="对话每日上限（0=不限制）")
+    images_daily_limit: int = Field(default=2, ge=0, le=9999, description="绘图每日上限（0=不限制）")
+    videos_daily_limit: int = Field(default=1, ge=0, le=9999, description="视频每日上限（0=不限制）")
+
+
 class PublicDisplayConfig(BaseModel):
     """公开展示配置"""
     logo_url: str = Field(default="", description="Logo URL")
@@ -154,6 +162,7 @@ class AppConfig(BaseModel):
     image_generation: ImageGenerationConfig
     video_generation: VideoGenerationConfig = Field(default_factory=VideoGenerationConfig)
     retry: RetryConfig
+    quota_limits: QuotaLimitsConfig = Field(default_factory=QuotaLimitsConfig)
     public_display: PublicDisplayConfig
     session: SessionConfig
 
@@ -268,6 +277,13 @@ class ConfigManager:
             print(f"[WARN] 重试配置加载失败，使用默认值: {e}")
             retry_config = RetryConfig()
 
+        # 加载配额上限配置
+        try:
+            quota_limits_config = QuotaLimitsConfig(**yaml_data.get("quota_limits", {}))
+        except Exception as e:
+            print(f"[WARN] 配额上限配置加载失败，使用默认值: {e}")
+            quota_limits_config = QuotaLimitsConfig()
+
         try:
             public_display_config = PublicDisplayConfig(
                 **yaml_data.get("public_display", {})
@@ -291,6 +307,7 @@ class ConfigManager:
             image_generation=image_generation_config,
             video_generation=video_generation_config,
             retry=retry_config,
+            quota_limits=quota_limits_config,
             public_display=public_display_config,
             session=session_config
         )
@@ -350,6 +367,8 @@ class ConfigManager:
 
             retry_config = RetryConfig(**data.get("retry", {}))
 
+            quota_limits_config = QuotaLimitsConfig(**data.get("quota_limits", {}))
+
             public_display_config = PublicDisplayConfig(
                 **data.get("public_display", {})
             )
@@ -365,6 +384,7 @@ class ConfigManager:
                 image_generation=image_generation_config,
                 video_generation=video_generation_config,
                 retry=retry_config,
+                quota_limits=quota_limits_config,
                 public_display=public_display_config,
                 session=session_config
             )
@@ -524,6 +544,10 @@ class _ConfigProxy:
     @property
     def retry(self):
         return config_manager.config.retry
+
+    @property
+    def quota_limits(self):
+        return config_manager.config.quota_limits
 
     @property
     def public_display(self):

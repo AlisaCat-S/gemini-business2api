@@ -600,6 +600,8 @@ def _apply_cooldown_data(data: dict, cooldown_data: dict) -> None:
     data["quota_cooldowns"] = cooldown_data.get("quota_cooldowns", {})
     data["conversation_count"] = cooldown_data.get("conversation_count", 0)
     data["failure_count"] = cooldown_data.get("failure_count", 0)
+    data["daily_usage"] = cooldown_data.get("daily_usage", {"text": 0, "images": 0, "videos": 0})
+    data["daily_usage_date"] = cooldown_data.get("daily_usage_date", "")
 
 async def update_account_cooldown(account_id: str, cooldown_data: dict) -> bool:
     """更新单个账户的冷却状态和统计数据"""
