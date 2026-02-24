@@ -757,9 +757,96 @@ class GeminiAutomation:
                 "host_c_oses": host,
                 "expires_at": expires_at,
             }
+
+            # 提取试用期信息
+            trial_end = self._extract_trial_end(page, csesidx, config_id)
+            if trial_end:
+                config["trial_end"] = trial_end
+
             return {"success": True, "config": config}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    def _extract_trial_end(self, page, csesidx: str, config_id: str) -> Optional[str]:
+        """从页面中提取试用期到期日期，不跳转到可能 400 的深层路径"""
+        import re
+        try:
+            self._log("info", "📅 获取试用期信息...")
+
+            def _days_to_end_date(days: int) -> str:
+                end_date = (datetime.now(timezone(timedelta(hours=8))) + timedelta(days=days)).strftime("%Y-%m-%d")
+                self._log("info", f"📅 试用期剩余 {days} 天，到期日: {end_date}")
+                return end_date
+
+            def _search_page_source(source: str) -> Optional[str]:
+                """在页面源码中搜索试用期信息"""
+                # 格式1: "daysLeft":29 (JSON数据)
+                m = re.search(r'"daysLeft"\s*:\s*(\d+)', source)
+                if m:
+                    return _days_to_end_date(int(m.group(1)))
+                # 格式2: "trialDaysRemaining":29
+                m = re.search(r'"trialDaysRemaining"\s*:\s*(\d+)', source)
+                if m:
+                    return _days_to_end_date(int(m.group(1)))
+                # 格式3: 日期数组 "[2026,3,25]" 形式 (batchexecute格式)
+                m = re.search(r'\[(\d{4}),(\d{1,2}),(\d{1,2})\].*?\[(\d{4}),(\d{1,2}),(\d{1,2})\]', source)
+                if m:
+                    # 取第二个日期（结束日期）
+                    try:
+                        end_date = f"{m.group(4):0>4}-{int(m.group(5)):02d}-{int(m.group(6)):02d}"
+                        # 简单校验年份合理
+                        if 2025 <= int(m.group(4)) <= 2030:
+                            self._log("info", f"📅 试用期到期日: {end_date}")
+                            return end_date
+                    except Exception:
+                        pass
+                # 格式4: "29 days left" 或 "还剩29天"
+                m = re.search(r'(\d+)\s*days?\s*left', source, re.IGNORECASE)
+                if m:
+                    return _days_to_end_date(int(m.group(1)))
+                m = re.search(r'还剩\s*(\d+)\s*天', source)
+                if m:
+                    return _days_to_end_date(int(m.group(1)))
+                return None
+
+            # ——— 方式1: 当前页面（刚登录完，不需要跳转）———
+            try:
+                source = page.html
+                result = _search_page_source(source or "")
+                if result:
+                    return result
+            except Exception:
+                pass
+
+            # ——— 方式2: 跳转到 /settings（不带 billing/plans 后缀，SPA可以处理）———
+            try:
+                settings_url = f"https://business.gemini.google/cid/{config_id}/settings?csesidx={csesidx}"
+                page.get(settings_url, timeout=self.timeout)
+                time.sleep(2)
+                source = page.html
+                result = _search_page_source(source or "")
+                if result:
+                    return result
+            except Exception:
+                pass
+
+            # ——— 方式3: 跳转到主页（最保险）———
+            try:
+                main_url = f"https://business.gemini.google/cid/{config_id}?csesidx={csesidx}"
+                page.get(main_url, timeout=self.timeout)
+                time.sleep(2)
+                source = page.html
+                result = _search_page_source(source or "")
+                if result:
+                    return result
+            except Exception:
+                pass
+
+            self._log("warning", "⚠️ 未能获取试用期信息（页面中未找到相关数据）")
+            return None
+        except Exception as e:
+            self._log("warning", f"⚠️ 获取试用期失败: {e}")
+            return None
 
     def _save_screenshot(self, page, name: str) -> None:
         """保存截图"""

@@ -49,7 +49,7 @@ from core.google_api import (
     upload_context_file,
     get_session_file_metadata,
     download_image_with_jwt,
-    save_image_to_hf
+    save_image_to_hf,
 )
 from core.account import (
     AccountManager,
@@ -652,7 +652,7 @@ async def serve_logo():
         return FileResponse(logo_path)
     raise HTTPException(404, "Not Found")
 
-@app.get("/admin/health")
+@app.get("/health")
 async def health_check():
     """健康检查端点，用于 Docker HEALTHCHECK"""
     return {"status": "ok"}
@@ -1208,10 +1208,13 @@ async def admin_get_accounts(request: Request):
             "cooldown_reason": cooldown_reason,
             "conversation_count": account_manager.conversation_count,
             "session_usage_count": account_manager.session_usage_count,
-            "quota_status": quota_status  # 新增配额状态
+            "quota_status": quota_status,
+            "trial_end": config.trial_end,
+            "trial_days_remaining": config.get_trial_days_remaining(),
         })
 
     return {"total": len(accounts_info), "accounts": accounts_info}
+
 
 @app.get("/admin/accounts-config")
 @require_login()

@@ -31,6 +31,8 @@ export interface AdminAccount {
   cooldown_reason: string | null
   conversation_count: number
   quota_status: AccountQuotaStatus
+  trial_end?: string | null
+  trial_days_remaining?: number | null
 }
 
 export interface AccountsListResponse {

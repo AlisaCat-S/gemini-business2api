@@ -62,7 +62,7 @@ EXPOSE 7860
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:7860/admin/health || exit 1
+    CMD curl -f http://localhost:7860/health || exit 1
 
 # 启动服务
 CMD ["./entrypoint.sh"]

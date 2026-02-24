@@ -256,12 +256,22 @@
           <div class="mt-4 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
             <div>
               <p>状态</p>
-              <p class="mt-1 text-sm font-semibold text-foreground">
+              <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm font-semibold text-foreground">
                 <span
                   class="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-xs"
                   :class="statusClass(account)"
                 >
                   {{ statusLabel(account) }}
+                </span>
+                <span
+                  v-if="account.trial_days_remaining != null"
+                  class="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-medium"
+                  :class="trialBadgeClass(account.trial_days_remaining)"
+                >
+                  <svg class="h-3 w-3 shrink-0" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M5 1a1 1 0 0 1 1 1v.5h4V2a1 1 0 0 1 2 0v.5h1A1.5 1.5 0 0 1 14.5 4v9A1.5 1.5 0 0 1 13 14.5H3A1.5 1.5 0 0 1 1.5 13V4A1.5 1.5 0 0 1 3 2.5h1V2a1 1 0 0 1 1-1zm-2 4v1.5h10V5H3zm0 3v5h10V8H3z"/>
+                  </svg>
+                  {{ account.trial_days_remaining }}天
                 </span>
               </p>
             </div>
@@ -376,12 +386,24 @@
                 {{ account.id }}
               </td>
               <td class="py-4 pr-6">
-                <span
-                  class="inline-flex items-center rounded-full border border-border px-3 py-1 text-xs"
-                  :class="statusClass(account)"
-                >
-                  {{ statusLabel(account) }}
-                </span>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span
+                    class="inline-flex items-center rounded-full border border-border px-3 py-1 text-xs"
+                    :class="statusClass(account)"
+                  >
+                    {{ statusLabel(account) }}
+                  </span>
+                  <span
+                    v-if="account.trial_days_remaining != null"
+                    class="inline-flex items-center gap-1 rounded-full border border-border px-2 py-1 text-xs font-medium"
+                    :class="trialBadgeClass(account.trial_days_remaining)"
+                  >
+                    <svg class="h-3 w-3 shrink-0" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M5 1a1 1 0 0 1 1 1v.5h4V2a1 1 0 0 1 2 0v.5h1A1.5 1.5 0 0 1 14.5 4v9A1.5 1.5 0 0 1 13 14.5H3A1.5 1.5 0 0 1 1.5 13V4A1.5 1.5 0 0 1 3 2.5h1V2a1 1 0 0 1 1-1zm-2 4v1.5h10V5H3zm0 3v5h10V8H3z"/>
+                    </svg>
+                    {{ account.trial_days_remaining }}天
+                  </span>
+                </div>
               </td>
               <td class="py-4 pr-6">
                 <div class="text-sm font-semibold" :class="remainingClass(account)">
@@ -2293,6 +2315,13 @@ const remainingClass = (account: AdminAccount) => {
   if (account.status === '即将过期') return 'text-amber-700'
   if (account.status === '未设置') return 'text-muted-foreground'
   return 'text-emerald-600'
+}
+
+const trialBadgeClass = (days: number | null | undefined) => {
+  if (days == null) return ''
+  if (days > 7) return 'bg-emerald-500 text-white'
+  if (days >= 3) return 'bg-amber-500 text-white'
+  return 'bg-rose-500 text-white'
 }
 
 const rowClass = (account: AdminAccount) => {

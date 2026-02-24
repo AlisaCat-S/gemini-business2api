@@ -62,6 +62,7 @@ class AccountConfig:
     mail_verify_ssl: Optional[bool] = None
     mail_domain: Optional[str] = None
     mail_api_key: Optional[str] = None
+    trial_end: Optional[str] = None  # 试用到期日 (格式: "2026-03-25"，独立于cookie过期)
 
     def get_remaining_hours(self) -> Optional[float]:
         """计算账户剩余小时数"""
@@ -88,6 +89,20 @@ class AccountConfig:
         if remaining is None:
             return False  # 未设置过期时间，默认不过期
         return remaining <= 0
+
+    def get_trial_days_remaining(self) -> Optional[int]:
+        """计算试用期剩余天数（基于 trial_end 字段）"""
+        if not self.trial_end:
+            return None
+        try:
+            beijing_tz = timezone(timedelta(hours=8))
+            end_date = datetime.strptime(self.trial_end, "%Y-%m-%d")
+            end_date = end_date.replace(tzinfo=beijing_tz)
+            now = datetime.now(beijing_tz)
+            remaining = (end_date.date() - now.date()).days
+            return max(0, remaining)
+        except Exception:
+            return None
 
 
 @dataclass(frozen=True)
@@ -727,6 +742,7 @@ def load_multi_account_config(
             mail_client_id=acc.get("mail_client_id"),
             mail_refresh_token=acc.get("mail_refresh_token"),
             mail_tenant=acc.get("mail_tenant"),
+            trial_end=acc.get("trial_end"),
         )
 
         # 检查账户是否已过期（已过期也加载到管理面板）
