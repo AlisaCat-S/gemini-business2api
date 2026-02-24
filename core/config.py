@@ -66,6 +66,8 @@ class BasicConfig(BaseModel):
     gptmail_domain: str = Field(default="", description="GPTMail 邮箱域名（可选，留空则随机选择）")
     browser_engine: str = Field(default="dp", description="浏览器引擎")
     browser_headless: bool = Field(default=False, description="自动化浏览器无头模式")
+    email_poll_retries: int = Field(default=3, ge=1, le=20, description="邮箱验证码单次轮询次数（每次间隔5秒）")
+    email_resend_retries: int = Field(default=1, ge=0, le=5, description="验证码重发重试次数（0=不重发直接失败）")
     refresh_window_hours: int = Field(default=1, ge=0, le=24, description="过期刷新窗口（小时）")
     register_default_count: int = Field(default=1, ge=1, description="默认注册数量")
     register_domain: str = Field(default="", description="DuckMail 域名（推荐）")

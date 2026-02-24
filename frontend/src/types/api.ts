@@ -98,6 +98,8 @@ export interface Settings {
     gptmail_domain?: string
     browser_engine?: string
     browser_headless?: boolean
+    email_poll_retries?: number
+    email_resend_retries?: number
     refresh_window_hours?: number
     register_default_count?: number
     register_domain?: string

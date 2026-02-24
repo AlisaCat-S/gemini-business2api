@@ -185,6 +185,31 @@
                   启用邮箱代理（使用账户操作代理）
                 </Checkbox>
 
+                <div class="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span>验证码轮询次数</span>
+                  <HelpTip text="每轮查询邮箱验证码的次数，每次间隔5秒。默认3次（共15秒）。" />
+                </div>
+                <input
+                  v-model.number="localSettings.basic.email_poll_retries"
+                  type="number"
+                  min="1"
+                  max="20"
+                  class="w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm"
+                  placeholder="3"
+                />
+                <div class="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span>验证码重发次数</span>
+                  <HelpTip text="轮询失败后重新发送验证码的次数。设为0则不重发直接失败。默认1次。" />
+                </div>
+                <input
+                  v-model.number="localSettings.basic.email_resend_retries"
+                  type="number"
+                  min="0"
+                  max="5"
+                  class="w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm"
+                  placeholder="1"
+                />
+
                 <!-- DuckMail 配置 -->
                 <template v-if="localSettings.basic.temp_mail_provider === 'duckmail'">
                   <Checkbox v-model="localSettings.basic.duckmail_verify_ssl">
