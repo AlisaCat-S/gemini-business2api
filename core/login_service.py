@@ -192,7 +192,6 @@ class LoginService(BaseTaskService[LoginTask]):
         mail_refresh_token = account.get("mail_refresh_token")
         mail_tenant = account.get("mail_tenant") or "consumers"
         proxy_for_auth, _ = parse_proxy_setting(config.basic.proxy_for_auth)
-        proxy_for_send_code, _ = parse_proxy_setting(config.basic.proxy_for_send_code)
 
         def log_cb(level, message):
             self._append_log(task, level, f"[{account_id}] {message}")
@@ -254,7 +253,6 @@ class LoginService(BaseTaskService[LoginTask]):
         automation = GeminiAutomation(
             user_agent=self.user_agent,
             proxy=proxy_for_auth,
-            proxy_for_send_code=proxy_for_send_code,
             headless=headless,
             log_callback=log_cb,
         )

@@ -8,7 +8,7 @@ import string
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from urllib.parse import quote, urlparse
+from urllib.parse import quote
 
 from DrissionPage import ChromiumPage, ChromiumOptions
 from core.base_task_service import TaskCancelledError
@@ -42,21 +42,18 @@ class GeminiAutomation:
         self,
         user_agent: str = "",
         proxy: str = "",
-        proxy_for_send_code: str = "",
         headless: bool = True,
         timeout: int = 60,
         log_callback=None,
     ) -> None:
         self.user_agent = user_agent or self._get_ua()
         self.proxy = proxy
-        self.proxy_for_send_code = proxy_for_send_code
         self.headless = headless
         self.timeout = timeout
         self.log_callback = log_callback
         self._page = None
         self._user_data_dir = None
         self._last_send_error = ""
-        self._pac_server = None
 
     def stop(self) -> None:
         """外部请求停止：尽力关闭浏览器实例。"""
@@ -66,7 +63,6 @@ class GeminiAutomation:
                 page.quit()
             except Exception:
                 pass
-        self._shutdown_pac_server()
 
     def login_and_extract(self, email: str, mail_client) -> dict:
         """执行登录并提取配置"""
@@ -90,7 +86,6 @@ class GeminiAutomation:
                 except Exception:
                     pass
             self._page = None
-            self._shutdown_pac_server()
             self._cleanup_user_data(user_data_dir)
             self._user_data_dir = None
 
@@ -115,20 +110,8 @@ class GeminiAutomation:
         options.set_argument("--lang=zh-CN")
         options.set_pref("intl.accept_languages", "zh-CN,zh")
 
-        if self.proxy and self.proxy_for_send_code:
-            pac_data_url = self._build_pac_data_url(self.proxy, self.proxy_for_send_code)
-            if pac_data_url:
-                options.set_argument(f"--proxy-pac-url={pac_data_url}")
-            else:
-                options.set_argument(f"--proxy-server={self.proxy}")
-        elif self.proxy:
+        if self.proxy:
             options.set_argument(f"--proxy-server={self.proxy}")
-        elif self.proxy_for_send_code:
-            pac_data_url = self._build_pac_data_url("DIRECT", self.proxy_for_send_code)
-            if pac_data_url:
-                options.set_argument(f"--proxy-pac-url={pac_data_url}")
-            else:
-                options.set_argument(f"--proxy-server={self.proxy_for_send_code}")
 
         if self.headless:
             # 使用新版无头模式，更接近真实浏览器
@@ -174,81 +157,6 @@ class GeminiAutomation:
                 pass
 
         return page
-
-    def _build_pac_data_url(self, auth_proxy: str, send_code_proxy: str) -> str:
-        """启动本地 HTTP 服务器提供 PAC 文件，返回 http://127.0.0.1:PORT/proxy.pac"""
-        pac_script = self._build_pac_script(auth_proxy, send_code_proxy)
-        if not pac_script:
-            return ""
-        import threading
-        from http.server import HTTPServer, BaseHTTPRequestHandler
-
-        pac_bytes = pac_script.encode("utf-8")
-
-        class PACHandler(BaseHTTPRequestHandler):
-            def do_GET(self):
-                self.send_response(200)
-                self.send_header("Content-Type", "application/x-ns-proxy-autoconfig")
-                self.send_header("Content-Length", str(len(pac_bytes)))
-                self.end_headers()
-                self.wfile.write(pac_bytes)
-            def log_message(self, format, *args):
-                pass  # 静默日志
-
-        server = HTTPServer(("127.0.0.1", 0), PACHandler)
-        port = server.server_address[1]
-        t = threading.Thread(target=server.serve_forever, daemon=True)
-        t.start()
-        self._pac_server = server
-        pac_url = f"http://127.0.0.1:{port}/proxy.pac"
-        self._log("info", f"🔀 PAC 分流已启用: 验证码→{send_code_proxy}, 其他→{auth_proxy} (PAC: {pac_url})")
-        return pac_url
-
-    def _shutdown_pac_server(self) -> None:
-        """关闭 PAC HTTP 服务器"""
-        if self._pac_server:
-            try:
-                self._pac_server.shutdown()
-            except Exception:
-                pass
-            self._pac_server = None
-
-    def _build_pac_script(self, auth_proxy: str, send_code_proxy: str) -> str:
-        """构建 PAC 脚本内容"""
-        auth_entry = self._proxy_url_to_pac(auth_proxy)
-        send_entry = self._proxy_url_to_pac(send_code_proxy)
-        if not auth_entry or not send_entry:
-            return ""
-        return (
-            "function FindProxyForURL(url, host) {\n"
-            '  if (dnsDomainIs(host, "accountverification.business.gemini.google")'
-            ' || shExpMatch(url, "*batchexecute*")) {\n'
-            f'    return "{send_entry}";\n'
-            "  }\n"
-            f'  return "{auth_entry}";\n'
-            "}"
-        )
-
-    @staticmethod
-    def _proxy_url_to_pac(proxy_url: str) -> str:
-        """将代理 URL (http://host:port, socks5://host:port) 转换为 PAC 规则字符串"""
-        if not proxy_url:
-            return ""
-        if proxy_url.upper() == "DIRECT":
-            return "DIRECT"
-        try:
-            parsed = urlparse(proxy_url)
-        except Exception:
-            return ""
-        scheme = (parsed.scheme or "").lower()
-        host = parsed.hostname or ""
-        port = parsed.port
-        if not host or not port:
-            return ""
-        address = f"{host}:{port}"
-        if scheme in ("socks5", "socks5h"):
-            return f"SOCKS5 {address}"
-        return f"PROXY {address}"
 
     def _run_flow(self, page, email: str, mail_client) -> dict:
         """执行登录流程"""

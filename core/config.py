@@ -47,7 +47,6 @@ class BasicConfig(BaseModel):
     api_key: str = Field(default="", description="API访问密钥（留空则公开访问，多个密钥用逗号分隔）")
     base_url: str = Field(default="", description="服务器URL（留空则自动检测）")
     proxy_for_auth: str = Field(default="", description="账户操作代理地址（注册/登录/刷新，留空则不使用代理）")
-    proxy_for_send_code: str = Field(default="", description="发送验证码专用代理（设置后自动启用PAC分流，其他请求走 proxy_for_auth）")
     proxy_for_chat: str = Field(default="", description="对话操作代理地址（JWT/会话/消息，留空则不使用代理）")
     duckmail_base_url: str = Field(default="https://api.duckmail.sbs", description="DuckMail API地址")
     duckmail_api_key: str = Field(default="", description="DuckMail API key")
@@ -220,7 +219,6 @@ class ConfigManager:
             api_key=basic_data.get("api_key") or "",
             base_url=basic_data.get("base_url") or "",
             proxy_for_auth=str(proxy_for_auth or "").strip(),
-            proxy_for_send_code=str(basic_data.get("proxy_for_send_code") or "").strip(),
             proxy_for_chat=str(proxy_for_chat or "").strip(),
             duckmail_base_url=basic_data.get("duckmail_base_url") or "https://api.duckmail.sbs",
             duckmail_api_key=str(duckmail_api_key_raw or "").strip(),

@@ -55,16 +55,6 @@
                   placeholder="http://127.0.0.1:7890 | no_proxy=localhost,127.0.0.1"
                 />
                 <div class="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <span>验证码发送代理</span>
-                  <HelpTip text="发送验证码专用代理，设置后自动启用PAC分流（仅验证码请求走此代理，其他走账户操作代理）" />
-                </div>
-                <input
-                  v-model="localSettings.basic.proxy_for_send_code"
-                  type="text"
-                  class="w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm"
-                  placeholder="http://easy-proxies:2323"
-                />
-                <div class="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                   <span>聊天操作代理</span>
                   <HelpTip text="用于 JWT/会话/消息操作的代理，留空则禁用" />
                 </div>

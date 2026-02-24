@@ -1455,7 +1455,6 @@ async def admin_get_settings(request: Request):
             "api_key": config.basic.api_key,
             "base_url": config.basic.base_url,
             "proxy_for_auth": config.basic.proxy_for_auth,
-            "proxy_for_send_code": config.basic.proxy_for_send_code,
             "proxy_for_chat": config.basic.proxy_for_chat,
             "duckmail_base_url": config.basic.duckmail_base_url,
             "duckmail_api_key": config.basic.duckmail_api_key,
