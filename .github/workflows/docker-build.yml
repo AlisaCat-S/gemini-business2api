@@ -2,7 +2,7 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches: [main]
+    branches: [main, beta]
   workflow_dispatch:
 
 env:
@@ -37,7 +37,12 @@ jobs:
       - name: Generate version tag (UTC+8 timestamp)
         id: version
         run: |
-          VERSION="v$(TZ='Asia/Shanghai' date +'%Y.%m.%d-%H.%M')"
+          BASE="v$(TZ='Asia/Shanghai' date +'%Y.%m.%d-%H.%M')"
+          if [ "${{ github.ref_name }}" = "beta" ]; then
+            VERSION="beta-${BASE}"
+          else
+            VERSION="${BASE}"
+          fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Extract metadata
@@ -47,7 +52,8 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=${{ steps.version.outputs.version }}
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
+            type=raw,value=beta,enable=${{ github.ref_name == 'beta' }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
